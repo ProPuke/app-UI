@@ -73,9 +73,10 @@ var ViewNavigator = function( target, options ) {
 }
 
 ViewNavigator.prototype.replaceView = function( viewDescriptor ) {
-	if (this.animating)
-		return;
-	viewDescriptor.animation = 'pushEffect'
+
+	this.finishAnimations();
+
+	viewDescriptor.animation = 'pushEffect';
 
 	//this is a hack to mimic behavior of pushView, then pop off the 'current' from the history
 	this.history.push( viewDescriptor );
@@ -86,8 +87,9 @@ ViewNavigator.prototype.replaceView = function( viewDescriptor ) {
 }
 
 ViewNavigator.prototype.pushView = function( viewDescriptor ) {
-	if (this.animating)
-		return;
+
+	this.finishAnimations();
+
 	viewDescriptor.animation = 'pushEffect'
 	this.history.push( viewDescriptor );
 	this.updateView( viewDescriptor );
@@ -95,8 +97,10 @@ ViewNavigator.prototype.pushView = function( viewDescriptor ) {
 
 ViewNavigator.prototype.popView = function() {
 
-	if (this.animating || this.history.length <= 1 )
+	if (this.history.length <= 1 )
 		return;
+
+	this.finishAnimations();
 
 	var currentViewDescriptor = this.history[ this.history.length-1];
 	if ( currentViewDescriptor.backCallback ) {
@@ -188,7 +192,7 @@ ViewNavigator.prototype.updateView = function( viewDescriptor ) {
 		this.headerContent.css( 'opacity', 0 );
 		this.header.append( this.headerContent );
 
-		var func = this.animationCompleteHandler(this.contentPendingRemove, this.headerContentPendingRemove, this.headerContent, this.contentViewHolder );
+		this.animationCallback = this.animationCompleteHandler(this.contentPendingRemove, this.headerContentPendingRemove, this.headerContent, this.contentViewHolder );
 
 		this.contentPendingRemove.animate({
 				left:this.contentViewHolder.width(),
@@ -208,7 +212,7 @@ ViewNavigator.prototype.updateView = function( viewDescriptor ) {
 				opacity:0,
 				avoidTransforms:false,
 				useTranslate3d: true
-			}, this.animationDuration, func );
+			}, this.animationDuration, this.animationCallback );
 
 		this.headerContent.animate({
 				left:0,
@@ -233,7 +237,7 @@ ViewNavigator.prototype.updateView = function( viewDescriptor ) {
 		this.headerContent.css( 'opacity', 0 );
 		this.header.append( this.headerContent );
 
-		var func = this.animationCompleteHandler(this.contentPendingRemove, this.headerContentPendingRemove, this.headerContent, this.contentViewHolder );
+		this.animationCallback = this.animationCompleteHandler(this.contentPendingRemove, this.headerContentPendingRemove, this.headerContent, this.contentViewHolder );
 
 		this.contentViewHolder.animate({
 				left:0,
@@ -245,7 +249,7 @@ ViewNavigator.prototype.updateView = function( viewDescriptor ) {
 				left:-this.contentViewHolder.width()/2,
 				avoidTransforms:false,
 				useTranslate3d: true
-			}, this.animationDuration, func);
+			}, this.animationDuration, this.animationCallback);
 
 		this.headerContent.animate({
 				left:0,
@@ -284,6 +288,20 @@ ViewNavigator.prototype.updateView = function( viewDescriptor ) {
 	if ( viewDescriptor.showCallback ) {
 		viewDescriptor.showCallback();
 	}
+}
+
+ViewNavigator.prototype.finishAnimations = function() {
+	if (!this.animating)
+		return;
+
+	this.contentViewHolder.stop(true,true);
+	this.contentPendingRemove.stop(true,true);
+
+	this.headerContent.stop(true,true);
+	this.headerContentPendingRemove.stop(true,true);
+
+	//jquery.animate-enhanced does not call callbacks on stop(gotoEnd), so we have to do it manually..
+	this.animationCallback();
 }
 
 
